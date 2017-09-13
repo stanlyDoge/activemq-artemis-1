@@ -53,6 +53,7 @@ import io.netty.channel.local.LocalServerChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.ResourceLeakDetector;
 import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.concurrent.GlobalEventExecutor;
@@ -180,6 +181,8 @@ public class NettyAcceptor extends AbstractAcceptor {
 
    private static final Logger logger = Logger.getLogger(NettyAcceptor.class);
 
+   private static volatile int communicationTimeout = 30; //seconds
+
    public NettyAcceptor(final String name,
                         final ClusterConnection clusterConnection,
                         final Map<String, Object> configuration,
@@ -300,6 +303,7 @@ public class NettyAcceptor extends AbstractAcceptor {
                pipeline.addLast("ssl", getSslHandler());
                pipeline.addLast("sslHandshakeExceptionHandler", new SslHandshakeExceptionHandler());
             }
+            pipeline.addLast("readTimeoutHandler", new ReadTimeoutHandler(communicationTimeout));
             pipeline.addLast(protocolHandler.getProtocolDecoder());
          }
       };
@@ -764,5 +768,13 @@ public class NettyAcceptor extends AbstractAcceptor {
          }
          return (list.size() < 2 ? throwable : list.get(list.size() - 1));
       }
+   }
+
+   public static int getCommunicationTimeout() {
+      return communicationTimeout;
+   }
+
+   public static void setCommunicationTimeout(int communicationTimeout) {
+      NettyAcceptor.communicationTimeout = communicationTimeout;
    }
 }

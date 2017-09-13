@@ -17,6 +17,7 @@
 package org.apache.activemq.artemis.tests.integration.amqp;
 
 import javax.jms.JMSException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -26,8 +27,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import io.netty.handler.timeout.ReadTimeoutException;
 import org.apache.activemq.artemis.api.core.SimpleString;
 import org.apache.activemq.artemis.api.core.management.ActiveMQServerControl;
+import org.apache.activemq.artemis.core.remoting.impl.netty.NettyAcceptor;
 import org.apache.activemq.artemis.core.server.Queue;
 import org.apache.activemq.artemis.api.core.RoutingType;
 import org.apache.activemq.artemis.protocol.amqp.proton.AmqpSupport;
@@ -528,6 +531,45 @@ public class AmqpSendReceiveTest extends AmqpClientTestSupport {
       sender.send(message);
       sender.close();
 
+      LOG.info("Attempting to read message with receiver");
+      AmqpReceiver receiver = session.createReceiver(getTestName());
+      receiver.flow(2);
+      AmqpMessage received = receiver.receive(10, TimeUnit.SECONDS);
+      assertNotNull("Should have read message", received);
+      assertEquals("msg1", received.getMessageId());
+      received.accept();
+
+      receiver.close();
+
+      connection.close();
+   }
+
+   @Test(timeout = 60000, expected = IOException.class)
+   public void testUnactiveConnectionHangUpAfterTimeout() throws Exception {
+
+
+      int timeout = NettyAcceptor.getCommunicationTimeout();
+      NettyAcceptor.setCommunicationTimeout(1); // test won't last too long
+
+      AmqpClient client = createAmqpClient();
+      AmqpConnection connection = addConnection(client.connect());
+      AmqpSession session = connection.createSession();
+
+      AmqpSender sender = session.createSender(getTestName());
+
+      AmqpMessage message = new AmqpMessage();
+
+      message.setMessageId("msg" + 1);
+      message.setMessageAnnotation("serialNo", 1);
+      message.setText("Test-Message");
+
+      // simulate no communication for time > timeout
+      Thread.sleep((NettyAcceptor.getCommunicationTimeout() + 1)*1000);
+      NettyAcceptor.setCommunicationTimeout(timeout);
+      sender.send(message);
+      sender.close();
+
+      //test should not ever get here
       LOG.info("Attempting to read message with receiver");
       AmqpReceiver receiver = session.createReceiver(getTestName());
       receiver.flow(2);

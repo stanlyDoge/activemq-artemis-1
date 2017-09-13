@@ -21,6 +21,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.group.ChannelGroup;
+import io.netty.handler.timeout.ReadTimeoutException;
 import org.apache.activemq.artemis.api.core.ActiveMQException;
 import org.apache.activemq.artemis.core.buffers.impl.ChannelBufferWrapper;
 import org.apache.activemq.artemis.core.client.ActiveMQClientLogger;
@@ -83,6 +84,11 @@ public class ActiveMQChannelHandler extends ChannelDuplexHandler {
 
    @Override
    public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) throws Exception {
+
+      if (cause instanceof ReadTimeoutException) {
+         ActiveMQClientLogger.LOGGER.error("Connection without communication timeout has expired.");
+      }
+
       if (!active) {
          return;
       }
