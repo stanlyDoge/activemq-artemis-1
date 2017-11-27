@@ -966,6 +966,7 @@ public class AMQPMessage extends RefCountMessage {
 
    @Override
    public void reencode() {
+      getApplicationProperties();
       if (_deliveryAnnotations != null) getProtonMessage().setDeliveryAnnotations(_deliveryAnnotations);
       if (_messageAnnotations != null) getProtonMessage().setMessageAnnotations(_messageAnnotations);
       if (applicationProperties != null) getProtonMessage().setApplicationProperties(applicationProperties);
